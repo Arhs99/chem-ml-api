@@ -17,9 +17,10 @@
 from __future__ import annotations
 
 import json
+import tempfile
+import unittest
 from pathlib import Path
 
-import pytest
 from pydantic import ValidationError
 
 from chemmlapi.configs.registry import load_config, resolve_model_dir
@@ -30,87 +31,95 @@ def _write(path: Path, data: dict) -> Path:
     return path
 
 
-def test_minimal_valid_config(tmp_path: Path):
-    cfg = _write(tmp_path / "config.json", {
-        "assays": [{"name": "logD", "model_dir": "./models/logd"}]
-    })
-    config = load_config(cfg)
-    entry = config.assays[0]
-    assert entry.name == "logD"
-    assert entry.model_dir == "./models/logd"
-    assert entry.inverse_transform == "none"
-    assert entry.ensemble_glob == "model_*"
-    assert entry.batch_size == 64
+class RegistryConfigTests(unittest.TestCase):
+
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.tmp_path = Path(tmp.name)
+
+    def test_minimal_valid_config(self):
+        cfg = _write(self.tmp_path / "config.json", {
+            "assays": [{"name": "logD", "model_dir": "./models/logd"}]
+        })
+        entry = load_config(cfg).assays[0]
+        self.assertEqual(entry.name, "logD")
+        self.assertEqual(entry.model_dir, "./models/logd")
+        self.assertEqual(entry.inverse_transform, "none")
+        self.assertEqual(entry.ensemble_glob, "model_*")
+        self.assertEqual(entry.batch_size, 64)
+
+    def test_full_valid_config(self):
+        cfg = _write(self.tmp_path / "config.json", {
+            "assays": [{
+                "name": "logD",
+                "model_dir": "./models/logd",
+                "inverse_transform": "log10",
+                "ensemble_glob": "replicate_*",
+                "batch_size": 128,
+            }]
+        })
+        entry = load_config(cfg).assays[0]
+        self.assertEqual(entry.inverse_transform, "log10")
+        self.assertEqual(entry.ensemble_glob, "replicate_*")
+        self.assertEqual(entry.batch_size, 128)
+
+    def test_rejects_unknown_inverse_transform(self):
+        cfg = _write(self.tmp_path / "config.json", {
+            "assays": [{"name": "x", "model_dir": "./m", "inverse_transform": "sigmoid"}]
+        })
+        with self.assertRaises(ValidationError):
+            load_config(cfg)
+
+    def test_rejects_missing_model_dir(self):
+        cfg = _write(self.tmp_path / "config.json", {"assays": [{"name": "x"}]})
+        with self.assertRaises(ValidationError):
+            load_config(cfg)
+
+    def test_rejects_empty_assays(self):
+        cfg = _write(self.tmp_path / "config.json", {"assays": []})
+        with self.assertRaises(ValidationError):
+            load_config(cfg)
+
+    def test_rejects_duplicate_assay_names(self):
+        cfg = _write(self.tmp_path / "config.json", {
+            "assays": [
+                {"name": "logD", "model_dir": "./a"},
+                {"name": "logD", "model_dir": "./b"},
+            ]
+        })
+        with self.assertRaises(ValidationError):
+            load_config(cfg)
+
+    def test_rejects_zero_batch_size(self):
+        cfg = _write(self.tmp_path / "config.json", {
+            "assays": [{"name": "x", "model_dir": "./m", "batch_size": 0}]
+        })
+        with self.assertRaises(ValidationError):
+            load_config(cfg)
+
+    def test_resolve_model_dir_is_config_relative(self):
+        cfg = _write(self.tmp_path / "config.json", {
+            "assays": [{"name": "x", "model_dir": "./sub/model"}]
+        })
+        entry = load_config(cfg).assays[0]
+        self.assertEqual(
+            resolve_model_dir(cfg, entry),
+            (self.tmp_path / "sub" / "model").resolve(),
+        )
+
+    def test_resolve_model_dir_supports_parent_traversal(self):
+        cfg_dir = self.tmp_path / "configs"
+        cfg_dir.mkdir()
+        cfg = _write(cfg_dir / "config.json", {
+            "assays": [{"name": "x", "model_dir": "../models/m"}]
+        })
+        entry = load_config(cfg).assays[0]
+        self.assertEqual(
+            resolve_model_dir(cfg, entry),
+            (self.tmp_path / "models" / "m").resolve(),
+        )
 
 
-def test_full_valid_config(tmp_path: Path):
-    cfg = _write(tmp_path / "config.json", {
-        "assays": [{
-            "name": "logD",
-            "model_dir": "./models/logd",
-            "inverse_transform": "log10",
-            "ensemble_glob": "replicate_*",
-            "batch_size": 128,
-        }]
-    })
-    entry = load_config(cfg).assays[0]
-    assert entry.inverse_transform == "log10"
-    assert entry.ensemble_glob == "replicate_*"
-    assert entry.batch_size == 128
-
-
-def test_rejects_unknown_inverse_transform(tmp_path: Path):
-    cfg = _write(tmp_path / "config.json", {
-        "assays": [{"name": "x", "model_dir": "./m", "inverse_transform": "sigmoid"}]
-    })
-    with pytest.raises(ValidationError):
-        load_config(cfg)
-
-
-def test_rejects_missing_model_dir(tmp_path: Path):
-    cfg = _write(tmp_path / "config.json", {"assays": [{"name": "x"}]})
-    with pytest.raises(ValidationError):
-        load_config(cfg)
-
-
-def test_rejects_empty_assays(tmp_path: Path):
-    cfg = _write(tmp_path / "config.json", {"assays": []})
-    with pytest.raises(ValidationError):
-        load_config(cfg)
-
-
-def test_rejects_duplicate_assay_names(tmp_path: Path):
-    cfg = _write(tmp_path / "config.json", {
-        "assays": [
-            {"name": "logD", "model_dir": "./a"},
-            {"name": "logD", "model_dir": "./b"},
-        ]
-    })
-    with pytest.raises(ValidationError):
-        load_config(cfg)
-
-
-def test_rejects_zero_batch_size(tmp_path: Path):
-    cfg = _write(tmp_path / "config.json", {
-        "assays": [{"name": "x", "model_dir": "./m", "batch_size": 0}]
-    })
-    with pytest.raises(ValidationError):
-        load_config(cfg)
-
-
-def test_resolve_model_dir_is_config_relative(tmp_path: Path):
-    cfg = _write(tmp_path / "config.json", {
-        "assays": [{"name": "x", "model_dir": "./sub/model"}]
-    })
-    entry = load_config(cfg).assays[0]
-    assert resolve_model_dir(cfg, entry) == (tmp_path / "sub" / "model").resolve()
-
-
-def test_resolve_model_dir_supports_parent_traversal(tmp_path: Path):
-    cfg_dir = tmp_path / "configs"
-    cfg_dir.mkdir()
-    cfg = _write(cfg_dir / "config.json", {
-        "assays": [{"name": "x", "model_dir": "../models/m"}]
-    })
-    entry = load_config(cfg).assays[0]
-    assert resolve_model_dir(cfg, entry) == (tmp_path / "models" / "m").resolve()
+if __name__ == "__main__":
+    unittest.main()

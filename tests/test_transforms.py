@@ -14,26 +14,35 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import unittest
+
 import numpy as np
 
 from chemmlapi.core.transforms import INVERSE_TRANSFORMS
 
 
-def test_expected_keys():
-    assert set(INVERSE_TRANSFORMS) == {"none", "log10", "logit"}
+class InverseTransformsTests(unittest.TestCase):
+
+    def test_expected_keys(self):
+        self.assertEqual(set(INVERSE_TRANSFORMS), {"none", "log10", "logit"})
+
+    def test_none_is_identity(self):
+        x = np.array([-2.5, 0.0, 3.14])
+        np.testing.assert_array_equal(INVERSE_TRANSFORMS["none"](x), x)
+
+    def test_log10_inverse_roundtrips(self):
+        x = np.array([0.1, 1.0, 100.0])
+        np.testing.assert_allclose(
+            INVERSE_TRANSFORMS["log10"](np.log10(x)), x, rtol=1e-12,
+        )
+
+    def test_logit_inverse_roundtrips(self):
+        p = np.array([0.1, 0.5, 0.9])
+        logits = np.log(p / (1 - p))
+        np.testing.assert_allclose(
+            INVERSE_TRANSFORMS["logit"](logits), p, rtol=1e-12,
+        )
 
 
-def test_none_is_identity():
-    x = np.array([-2.5, 0.0, 3.14])
-    np.testing.assert_array_equal(INVERSE_TRANSFORMS["none"](x), x)
-
-
-def test_log10_inverse_roundtrips():
-    x = np.array([0.1, 1.0, 100.0])
-    np.testing.assert_allclose(INVERSE_TRANSFORMS["log10"](np.log10(x)), x, rtol=1e-12)
-
-
-def test_logit_inverse_roundtrips():
-    p = np.array([0.1, 0.5, 0.9])
-    logits = np.log(p / (1 - p))
-    np.testing.assert_allclose(INVERSE_TRANSFORMS["logit"](logits), p, rtol=1e-12)
+if __name__ == "__main__":
+    unittest.main()

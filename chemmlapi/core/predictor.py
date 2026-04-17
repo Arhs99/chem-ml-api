@@ -31,7 +31,11 @@ def _forward_all(assay: LoadedAssay, smiles: list[str]) -> np.ndarray:
     stack: list[np.ndarray] = []
     for model in assay.models:
         loader = build_dataloader(
-            dataset, batch_size=assay.batch_size, shuffle=False, num_workers=0,
+            dataset,
+            batch_size=assay.batch_size,
+            shuffle=False,
+            num_workers=0,
+            drop_last=False,
         )
         chunks: list[np.ndarray] = []
         with torch.inference_mode():

@@ -76,7 +76,6 @@ class ApiIntegrationTests(unittest.TestCase):
             "assays": [{
                 "name": "logD",
                 "model_dir": str(LOGD_CHECKPOINT_DIR),
-                "inverse_transform": "none",
             }]
         }))
 

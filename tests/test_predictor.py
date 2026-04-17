@@ -55,7 +55,6 @@ class LogDPredictorIntegrationTests(unittest.TestCase):
             "assays": [{
                 "name": "logD",
                 "model_dir": str(LOGD_CHECKPOINT_DIR),
-                "inverse_transform": "none",
             }]
         }))
         cls.registry = load_registry(cfg)

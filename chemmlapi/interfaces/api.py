@@ -59,7 +59,7 @@ class PredictResponse(BaseModel):
 async def lifespan(app: FastAPI):
     global _pool, _assays, _n_processes
     config_path = str(Path(os.environ.get("CHEMML_CONFIG", "config.json")).resolve())
-    _n_processes = int(os.environ.get("CHEMML_PROCESSES", os.cpu_count() or 1))
+    _n_processes = int(os.environ.get("CHEMML_PROCESSES", 1))
     _assays = [e.name for e in load_config(config_path).assays]
     _pool = ProcessPoolExecutor(
         max_workers=_n_processes,

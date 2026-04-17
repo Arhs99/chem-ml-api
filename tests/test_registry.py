@@ -45,7 +45,6 @@ class RegistryConfigTests(unittest.TestCase):
         entry = load_config(cfg).assays[0]
         self.assertEqual(entry.name, "logD")
         self.assertEqual(entry.model_dir, "./models/logd")
-        self.assertEqual(entry.inverse_transform, "none")
         self.assertEqual(entry.ensemble_glob, "model_*")
         self.assertEqual(entry.batch_size, 64)
 
@@ -54,22 +53,13 @@ class RegistryConfigTests(unittest.TestCase):
             "assays": [{
                 "name": "logD",
                 "model_dir": "./models/logd",
-                "inverse_transform": "log10",
                 "ensemble_glob": "replicate_*",
                 "batch_size": 128,
             }]
         })
         entry = load_config(cfg).assays[0]
-        self.assertEqual(entry.inverse_transform, "log10")
         self.assertEqual(entry.ensemble_glob, "replicate_*")
         self.assertEqual(entry.batch_size, 128)
-
-    def test_rejects_unknown_inverse_transform(self):
-        cfg = _write(self.tmp_path / "config.json", {
-            "assays": [{"name": "x", "model_dir": "./m", "inverse_transform": "sigmoid"}]
-        })
-        with self.assertRaises(ValidationError):
-            load_config(cfg)
 
     def test_rejects_missing_model_dir(self):
         cfg = _write(self.tmp_path / "config.json", {"assays": [{"name": "x"}]})

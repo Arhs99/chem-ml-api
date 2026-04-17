@@ -18,17 +18,13 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
-
-InverseName = Literal["none", "log10", "logit"]
 
 
 class RegistryEntry(BaseModel):
     name: str = Field(min_length=1)
     model_dir: str = Field(min_length=1)
-    inverse_transform: InverseName = "none"
     ensemble_glob: str = Field(default="model_*", min_length=1)
     batch_size: int = Field(default=64, gt=0)
 

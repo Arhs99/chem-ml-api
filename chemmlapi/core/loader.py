@@ -23,7 +23,6 @@ from chemprop.models import MPNN
 from chemprop.nn.predictors import MveFFN
 
 from chemmlapi.configs.registry import load_config, resolve_model_dir
-from chemmlapi.core.transforms import INVERSE_TRANSFORMS, InverseFn
 
 
 @dataclass
@@ -31,7 +30,6 @@ class LoadedAssay:
     name: str
     models: list[MPNN]
     is_mve: bool
-    inverse_transform: InverseFn
     batch_size: int
 
 
@@ -88,7 +86,6 @@ def load_registry(config_path: str | Path) -> dict[str, LoadedAssay]:
             name=entry.name,
             models=models,
             is_mve=isinstance(models[0].predictor, MveFFN),
-            inverse_transform=INVERSE_TRANSFORMS[entry.inverse_transform],
             batch_size=entry.batch_size,
         )
     return registry

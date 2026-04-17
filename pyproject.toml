@@ -6,6 +6,9 @@ build-backend = "setuptools.build_meta"
 name            = "chem-ml-api"
 version         = "0.1.0"
 description     = "FastAPI inference service for chemprop ADMET models"
+authors         = [
+  { name = "Kostas Papadopoulos", email = "kostasp97@gmail.com" },
+]
 readme          = "README.md"
 license         = { text = "GPL-3.0-or-later" }
 requires-python = ">=3.11,<3.12"

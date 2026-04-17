@@ -25,7 +25,6 @@ Each entry in `config.json` describes an assay backed by a chemprop checkpoint:
     {
       "name": "logD",
       "model_dir": "./models/logd",
-      "inverse_transform": "none",
       "ensemble_glob": "model_*",
       "batch_size": 64
     }
@@ -38,7 +37,6 @@ Each entry in `config.json` describes an assay backed by a chemprop checkpoint:
   - a single `best.pt` at the root of `model_dir`;
   - an ensemble where `<ensemble_glob>/best.pt` matches multiple subdirectories (e.g. `model_0/best.pt`, `model_1/best.pt`, …).
   - If no `best.pt` is found, `checkpoints/*.ckpt` is tried as a fallback.
-- `inverse_transform` — one of `"none"`, `"log10"`, `"logit"`. Applied to the model's mean output; pick the inverse of whatever transform the model was trained against (e.g. `"log10"` if the target was `log10(...)`).
 - `ensemble_glob` — defaults to `"model_*"`.
 - `batch_size` — chemprop DataLoader batch size per worker.
 
@@ -57,7 +55,7 @@ chemmlapi                                    # uvicorn on 0.0.0.0:8000 (single w
 | `CHEMML_HOST`       | `0.0.0.0`         | uvicorn bind address                                                                             |
 | `CHEMML_PORT`       | `8000`            | uvicorn port                                                                                     |
 | `CHEMML_CONFIG`     | `config.json`     | Path to the assay registry JSON                                                                  |
-| `CHEMML_PROCESSES`  | `os.cpu_count()`  | Size of the in-process `ProcessPoolExecutor`. Independent from uvicorn workers (hardcoded to 1). |
+| `CHEMML_PROCESSES`  | `1`               | Size of the in-process `ProcessPoolExecutor`. Independent from uvicorn workers (hardcoded to 1). |
 | `CHEMML_API_KEY`    | *(unset)*         | When set, requests must carry `X-API-Key`. Unset disables auth.                                  |
 
 ## HTTP API
@@ -119,7 +117,7 @@ Response body:
 - **Single MVE model** → `std = sqrt(variance)` from the MVE head.
 - **Ensemble of MVE models** → total variance via the law of total variance: `mean(σ²) + var(μ)`.
 
-When `inverse_transform` is not `"none"`, `prediction` is returned in real-world space (after the inverse) but `std` stays in model-output space. Variance does not transform linearly under a nonlinear monotone map; reporting it in the space where it's well-defined is the honest choice.
+Predictions are returned as raw model outputs — no post-hoc inverse transform is applied. If the model was trained on a transformed target (e.g. `log10(y)`), the consumer is responsible for inverting that on their side.
 
 ## Testing
 

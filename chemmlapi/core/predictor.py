@@ -72,10 +72,9 @@ def predict(assay: LoadedAssay, smiles: list[str]) -> pd.DataFrame:
             mean = pred_per_model.mean(axis=0)
             std = pred_per_model.std(axis=0, ddof=0)
 
-    transformed = assay.inverse_transform(np.asarray(mean, dtype=np.float64))
     out: dict[str, object] = {
         "smiles": list(smiles),
-        "prediction": np.asarray(transformed, dtype=np.float64),
+        "prediction": np.asarray(mean, dtype=np.float64),
     }
     if std is not None:
         out["std"] = np.asarray(std, dtype=np.float64)

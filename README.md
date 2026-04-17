@@ -3,8 +3,6 @@
 FastAPI inference service that exposes chemprop 2.2.3 ADMET models over HTTP.
 CPU-only, multi-assay via a JSON registry, persistent `ProcessPoolExecutor` for per-request SMILES sharding.
 
-> Early development — full docs arrive with the first release.
-
 ## Install
 
 ```bash
@@ -17,26 +15,119 @@ pip install -e .
 
 ```bash
 cp config.example.json config.json
-# edit config.json so each assay entry points at a chemprop model directory
 ```
+
+Each entry in `config.json` describes an assay backed by a chemprop checkpoint:
+
+```json
+{
+  "assays": [
+    {
+      "name": "logD",
+      "model_dir": "./models/logd",
+      "inverse_transform": "none",
+      "ensemble_glob": "model_*",
+      "batch_size": 64
+    }
+  ]
+}
+```
+
+- `name` — any string; used in `POST /predict` as `{"assay": <name>}`.
+- `model_dir` — directory containing the chemprop checkpoint. Resolved **relative to `config.json`'s directory**. Two layouts are supported:
+  - a single `best.pt` at the root of `model_dir`;
+  - an ensemble where `<ensemble_glob>/best.pt` matches multiple subdirectories (e.g. `model_0/best.pt`, `model_1/best.pt`, …).
+  - If no `best.pt` is found, `checkpoints/*.ckpt` is tried as a fallback.
+- `inverse_transform` — one of `"none"`, `"log10"`, `"logit"`. Applied to the model's mean output; pick the inverse of whatever transform the model was trained against (e.g. `"log10"` if the target was `log10(...)`).
+- `ensemble_glob` — defaults to `"model_*"`.
+- `batch_size` — chemprop DataLoader batch size per worker.
 
 ## Run
 
 ```bash
 export CHEMML_CONFIG=$PWD/config.json
-export CHEMML_API_KEY=$(chemmlapi-genkey)
-chemmlapi
+export CHEMML_API_KEY=$(chemmlapi-genkey)   # optional; omit to disable auth entirely
+chemmlapi                                    # uvicorn on 0.0.0.0:8000 (single worker)
 ```
 
 ## Environment variables
 
-| Variable            | Default            | Purpose                                                                                          |
-|---------------------|--------------------|--------------------------------------------------------------------------------------------------|
-| `CHEMML_HOST`       | `0.0.0.0`          | uvicorn bind address                                                                             |
-| `CHEMML_PORT`       | `8000`             | uvicorn port                                                                                     |
-| `CHEMML_CONFIG`     | `config.json`      | Path to the assay registry JSON                                                                  |
-| `CHEMML_PROCESSES`  | `os.cpu_count()`   | Size of the in-process `ProcessPoolExecutor`. Independent from uvicorn workers (hardcoded to 1). |
-| `CHEMML_API_KEY`    | *(unset)*          | When set, requests must carry `X-API-Key`. Unset disables auth.                                  |
+| Variable            | Default           | Purpose                                                                                          |
+|---------------------|-------------------|--------------------------------------------------------------------------------------------------|
+| `CHEMML_HOST`       | `0.0.0.0`         | uvicorn bind address                                                                             |
+| `CHEMML_PORT`       | `8000`            | uvicorn port                                                                                     |
+| `CHEMML_CONFIG`     | `config.json`     | Path to the assay registry JSON                                                                  |
+| `CHEMML_PROCESSES`  | `os.cpu_count()`  | Size of the in-process `ProcessPoolExecutor`. Independent from uvicorn workers (hardcoded to 1). |
+| `CHEMML_API_KEY`    | *(unset)*         | When set, requests must carry `X-API-Key`. Unset disables auth.                                  |
+
+## HTTP API
+
+### `GET /health`
+
+Always public (no `X-API-Key` required).
+
+```
+$ curl -s http://localhost:8000/health
+{"status":"ok"}
+```
+
+### `GET /assays`
+
+Lists registered assay names.
+
+```
+$ curl -s -H "X-API-Key: $CHEMML_API_KEY" http://localhost:8000/assays
+{"assays":["logD"]}
+```
+
+### `POST /predict`
+
+Request body:
+
+```json
+{
+  "assay": "logD",
+  "smiles": ["CCO", "c1ccccc1"],
+  "include_std": false
+}
+```
+
+- `smiles` — 1 to 10000 strings. Each is canonicalized through RDKit; invalid strings are counted and excluded (422 if all are invalid).
+- `include_std` — when `true`, populates the `std` field per result. Returns `null` on a single non-MVE regressor (no native uncertainty).
+
+Response body:
+
+```json
+{
+  "results": [
+    {"smiles": "CCO",      "prediction": -1.140, "std": null},
+    {"smiles": "c1ccccc1", "prediction":  3.553, "std": null}
+  ],
+  "metadata": {
+    "elapsed_seconds": 0.021,
+    "molecules_processed": 2,
+    "molecules_invalid": 0,
+    "processes": 2
+  }
+}
+```
+
+## Uncertainty semantics
+
+- **Single non-MVE model** → `std = null`. No native uncertainty.
+- **Ensemble of non-MVE models** → `std` is the sample std across ensemble member predictions.
+- **Single MVE model** → `std = sqrt(variance)` from the MVE head.
+- **Ensemble of MVE models** → total variance via the law of total variance: `mean(σ²) + var(μ)`.
+
+When `inverse_transform` is not `"none"`, `prediction` is returned in real-world space (after the inverse) but `std` stays in model-output space. Variance does not transform linearly under a nonlinear monotone map; reporting it in the space where it's well-defined is the honest choice.
+
+## Testing
+
+```bash
+python -m unittest discover -s tests
+```
+
+Unit tests always run. Integration tests (via `tests/_markers.py`) skip automatically unless a chemprop checkpoint is present at `tests/fixtures/logd/best.pt` or `tests/fixtures/logd/model_*/best.pt`.
 
 ## License
 

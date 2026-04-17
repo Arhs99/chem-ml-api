@@ -1,0 +1,18 @@
+[build-system]
+requires      = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name            = "chem-ml-api"
+version         = "0.1.0"
+description     = "FastAPI inference service for chemprop ADMET models"
+readme          = "README.md"
+license         = { text = "GPL-3.0-or-later" }
+requires-python = ">=3.11,<3.12"
+
+[project.scripts]
+chemmlapi        = "chemmlapi.interfaces.api:run"
+chemmlapi-genkey = "chemmlapi.interfaces.api:generate_key"
+
+[tool.setuptools.packages.find]
+include = ["chemmlapi*"]

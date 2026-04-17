@@ -1,0 +1,38 @@
+# Project-specific: keep AI assistant context private
+CLAUDE.md
+.claude/
+
+# Local config (user-specific; example lives at config.example.json)
+config.json
+
+# Dev scratch scripts — never committed
+scratch/
+
+# Local test fixtures (e.g. symlink to logD checkpoint, generated reference predictions)
+tests/fixtures/
+
+# Model artifacts — users drop weights into models/, never committed
+models/**
+!models/.gitkeep
+*.pt
+*.ckpt
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+.tox/
+
+# Virtualenvs
+.venv/
+venv/
+env/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store

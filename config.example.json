@@ -1,0 +1,11 @@
+{
+  "assays": [
+    {
+      "name": "logD",
+      "model_dir": "./models/logd",
+      "inverse_transform": "none",
+      "ensemble_glob": "model_*",
+      "batch_size": 64
+    }
+  ]
+}

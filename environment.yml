@@ -1,0 +1,17 @@
+name: chem-ml-api
+channels:
+  - conda-forge
+  - pytorch
+dependencies:
+  - python=3.11
+  - pytorch=2.1.*
+  - cpuonly
+  - rdkit=2025.9.*
+  - pip
+  - pip:
+      - chemprop==2.2.3
+      - fastapi>=0.100
+      - uvicorn>=0.20
+      - pydantic>=2.0
+      - pandas>=2.0
+      - numpy<2.0
